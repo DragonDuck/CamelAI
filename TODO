@@ -1,0 +1,11 @@
+- Create move_check function that returns permitted moves for a player
+- Fully implement round betting
+    - Make sure that only 3 players can bet on any given camel
+- Return full game data for each game
+    - Log player moves
+    - Keep track of game bets
+    - Keep track of round bets
+- Rewrite as rule engine?
+    - Function to retrieve all valid moves
+        - As flat list of nested by move time for randomness
+        - Both player and game use this function to check for valid moves
