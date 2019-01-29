@@ -11,7 +11,8 @@ class GameState:
                  first_place_round_payout=(5, 3, 2),
                  second_place_round_payout=(1, 1, 1),
                  third_or_worse_place_round_payout=(-1, -1, -1),
-                 game_end_payout=(8, 5, 3, 1)):
+                 game_end_payout=(8, 5, 3, 1),
+                 verbose=True):
 
         # Global game variables
         self.NUM_CAMELS = num_camels
@@ -29,6 +30,9 @@ class GameState:
         self.SECOND_PLACE_ROUND_PAYOUT = second_place_round_payout
         self.THIRD_OR_WORSE_PLACE_ROUND_PAYOUT = third_or_worse_place_round_payout
         self.GAME_END_PAYOUT = game_end_payout
+
+        # Game parameter that can be changed
+        self.verbose = verbose
 
         # Game state variables
         # Each entry indicates the order of camels on that fields
@@ -157,25 +161,27 @@ def play_game(players):
     if not all([issubclass(player, PlayerInterface) for player in players]):
         raise ValueError("All players must extend PlayerInterface")
 
-    players = [player.move for player in players]
-
     def action(result, player):
-        print_update("Player Action: " + str(result))
         if result[0] == 0:  # Player wants to move camel
-            print_update("Player " + str(player) + " moves a camel")
-            move_camel(g, player)
+            camel, distance = move_camel(g, player)
+            print_update(
+                msg="Player {} moves camel {} by {} spaces".format(str(player), camel, str(distance)),
+                display_updates=g.verbose)
         elif result[0] == 1:  # Player wants to place trap
-            print_update("Player " + str(player) + " places or moves a trap")
             move_trap(g, result[1], result[2], player)
+            print_update(
+                msg="Player {} moves a {:+d} trap to field {}".format(str(player), result[1], str(result[2])),
+                display_updates=g.verbose)
         elif result[0] == 2:  # Player wants to make round winner bet
-            print_update("Player " + str(player) + " makaes a round winner bet")
             place_round_winner_bet(g, result[1], player)
+            print_update(
+                msg="Player {} places a round winner bet on camel {}".format(str(player), result[1]),
+                display_updates=g.verbose)
         elif result[0] == 3:  # Player wants to make game winner bet
-            print_update("Player " + str(player) + " makes a game winner bet")
-            place_game_winner_bet(g, result[1], player)
-        elif result[0] == 4:  # Player wants to make game loser bet
-            print_update("Player " + str(player) + " makes a game loser bet")
-            place_game_loser_bet(g, result[1], player)
+            place_game_bet(g, result[1], result[2], player)
+            print_update(
+                msg="Player {} places a game '{}' bet on camel {}".format(str(player), result[1], result[2]),
+                display_updates=g.verbose)
         else:
             raise ValueError("Illegal action ({}) performed by player {}".format(result, player))
         return
@@ -184,12 +190,14 @@ def play_game(players):
     g_round = 0
     while g.active_game:
         active_player = (g_round % len(players))
-        action(players[active_player](active_player, copy.deepcopy(g)), active_player)
+        action(
+            result=players[active_player].move(active_player, copy.deepcopy(g)),
+            player=active_player)
         g_round += 1
         display_game_state(g)
-    print_update("$ Totals:")
-    print_update("\t" + str(g.player_money_values))
-    print_update("Winner: " + str(g.game_winner))
+    print_update("$ Totals:", display_updates=g.verbose)
+    print_update("\t" + str(g.player_money_values), display_updates=g.verbose)
+    print_update("Winner: " + str(g.game_winner), display_updates=g.verbose)
     return g.game_winner
 
 
@@ -202,7 +210,7 @@ def move_camel(g, player):
     :return:
     """
     # Select a random camel to move
-    camel_index = random.choice([i for i in range(num_camels) if g.camel_yet_to_move[i]])
+    camel_index = random.choice([i for i in range(g.NUM_CAMELS) if g.camel_yet_to_move[i]])
 
     # Remove camel from pool
     g.camel_yet_to_move[camel_index] = False
@@ -210,7 +218,7 @@ def move_camel(g, player):
     # Find current position of camel on board and in camel stack
     [curr_pos, found_y_pos] = [
         (ix, iy) for ix, row in enumerate(g.camel_track) for iy, i in enumerate(row)
-        if i == g.camels[camel_index]][0]
+        if i == g.CAMELS[camel_index]][0]
     stack = len(g.camel_track[curr_pos]) - found_y_pos
 
     # Roll the dice
@@ -219,37 +227,35 @@ def move_camel(g, player):
     # Check if camel hits a trap
     stack_from_bottom = False
     if len(g.trap_track[curr_pos + distance]) > 0:
-        print_update("Player hit a trap!")
+        print_update("Player hit a trap!", display_updates=g.verbose)
         if g.trap_track[curr_pos + distance][0] == -1:
             stack_from_bottom = True
         g.player_money_values[g.trap_track[curr_pos + distance][1]] += 1  # Give the player who set the trap a coin
         distance += g.trap_track[curr_pos + distance][0]  # Change the distance according to trap
 
-    camels_to_move = []
+    # Move camels. If a camel hits a -1 trap, the stack is inverted
+    camels_to_move = g.camel_track[curr_pos][found_y_pos:]
+    g.camel_track[curr_pos] = g.camel_track[curr_pos][0:found_y_pos]
+    if stack_from_bottom:
+        g.camel_track[curr_pos + distance] = camels_to_move + g.camel_track[curr_pos + distance]
+    else:
+        g.camel_track[curr_pos + distance] = g.camel_track[curr_pos + distance] + camels_to_move
 
-    # If a camel hits a -1 trap, the stack is inverted
-    # TODO: Write a test case for this to ensure that this actually works
-    if stack_from_bottom:  # stack from bottom if trap was -1
-        for c in range(0, stack):
-            camels_to_move.append(g.camel_track[curr_pos].pop(stack - c - 1))
-            g.camel_track[curr_pos + distance].insert(0, camels_to_move[0])
-            camels_to_move.clear()
-    else:  # Stack normally
-        for c in range(0, stack):
-            camels_to_move.append(g.camel_track[curr_pos].pop(found_y_pos))
-            g.camel_track[curr_pos + distance].append(camels_to_move[0])
-            camels_to_move.clear()
-    g.player_money_values[player] += 1  # Give the rolling player a coin
+    # Give the rolling player a coin
+    g.player_money_values[player] += 1
 
     # If round is over, trigger End Of Round effects
     if sum(g.camel_yet_to_move) == 0:
         end_of_round(g)
 
-    if len(g.camel_track[board_size]) + len(g.camel_track[board_size + 1]) + len(g.camel_track[board_size + 2]) > 0:
+    # If game is over, trigger End Of Game and round effects
+    if len(g.camel_track[g.BOARD_SIZE]) + \
+            len(g.camel_track[g.BOARD_SIZE + 1]) + \
+            len(g.camel_track[g.BOARD_SIZE + 2]) > 0:
         end_of_round(g)
-        end_of_game(g)  # If game is over, trigger End Of Game and round effects
+        end_of_game(g)
 
-    return True
+    return g.CAMELS[camel_index], distance
 
 
 def move_trap(g, trap_type, trap_place, player):
@@ -333,8 +339,8 @@ def end_of_round(g):
     second_place_payout_index = 0
     third_or_worse_place_payout_index = 0
 
-    first_place_camel = find_camel_in_nth_place(g.camel_track, 1)
-    second_place_camel = find_camel_in_nth_place(g.camel_track, 2)
+    first_place_camel = find_camel_in_nth_place(g, 1)
+    second_place_camel = find_camel_in_nth_place(g, 2)
 
     for i in range(0, len(g.round_bets) - 1):  # Payout
         if g.round_bets[i][0] == first_place_camel:
@@ -371,8 +377,8 @@ def end_of_round(g):
 
 
 def end_of_game(g):
-    winning_camel = find_camel_in_nth_place(g.camel_track, 1)  # Find camel that won
-    losing_camel = find_camel_in_nth_place(g.camel_track, num_camels)  # Find camel that lost
+    winning_camel = find_camel_in_nth_place(g, 1)  # Find camel that won
+    losing_camel = find_camel_in_nth_place(g, g.NUM_CAMELS)  # Find camel that lost
 
     # Settle game bets
     # game_bets are of the form [camel,player]
@@ -415,8 +421,9 @@ def end_of_game(g):
     return True
 
 
-def find_camel_in_nth_place(track, n):
-    if n > num_camels or n < 1:
+def find_camel_in_nth_place(g, n):
+    track = g.camel_track
+    if n > g.NUM_CAMELS or n < 1:
         raise ValueError('Something tried to find a camel in a Nth place, where N is out of bounds')
     found_camel = False
     camels_counted = 0
@@ -432,8 +439,8 @@ def find_camel_in_nth_place(track, n):
     return False
 
 
-def display_game_state(g, display_updates=True):
-    if display_updates:
+def display_game_state(g):
+    if g.verbose:
         print("Track:")
         display_track_state(g.camel_track)
         print("\n")
@@ -445,35 +452,36 @@ def display_game_state(g, display_updates=True):
         print("\n")
 
 
-def display_track_state(track, display_updates=True):
-    if not display_updates:
+def display_track_state(g):
+    track = g.camel_track
+    if not g.verbose:
         return None
 
     max_stack = len(max(track, key=len))
 
     # Print milestones
     track_label_string = "\t|"
-    for _ in range(0, board_size):
+    for _ in range(0, g.BOARD_SIZE):
         track_label_string += ("-" + str(_) + "-|")
     print(track_label_string)
 
     # Print blank line
     track_label_string = "\t"
-    for i in range(0, board_size):
+    for i in range(0, g.BOARD_SIZE):
         track_label_string += ("---" + "-" * len(str(i)))
     print(track_label_string + "-")
 
     # Print N/A if there are no objects (camels/traps)
     if max_stack == 0:
         track_label_string = "\t  "  # extra spaces because double digit numbers mess things up
-        for _ in range(0, board_size):
+        for _ in range(0, g.BOARD_SIZE):
             track_label_string += "  "
         print(track_label_string + "NA")
 
     # otherwise print those objects
     for stack_spot in range(0, max_stack):
         track_string = "\t"
-        for track_spot in range(0, board_size):
+        for track_spot in range(0, g.BOARD_SIZE):
             if len(track[track_spot]) >= max_stack - stack_spot:
                 str_len = len(str(track[track_spot][max_stack - stack_spot - 1]))
                 track_string += (
@@ -485,13 +493,13 @@ def display_track_state(track, display_updates=True):
 
     # Print blank line again
     track_label_string = "\t"
-    for i in range(0, board_size):
+    for i in range(0, g.BOARD_SIZE):
         track_label_string += ("---" + "-" * len(str(i)))
     print(track_label_string + "-")
     # Print milestones again
 
     track_label_string = "\t|"
-    for _ in range(0, board_size):
+    for _ in range(0, g.BOARD_SIZE):
         track_label_string += ("-" + str(_) + "-|")
     print(track_label_string)
 
