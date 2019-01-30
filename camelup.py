@@ -39,7 +39,6 @@ class GameState:
         # The list is twice as long as the actual track to allow camels to pass the finish line by variable distances
         self.camel_track = [[] for _ in range(board_size * 2)]
         self.trap_track = [[] for _ in range(board_size * 2)]  # entry of the form [trap_type (-1,1), player]
-        self.player_has_placed_trap = [False] * num_players
         self.round_bets = []  # entries of the form [camel, player]
         self.game_winner_bets = []  # entries of the form [camel, player]
         self.game_loser_bets = []  # entries of the form [camel, player]
@@ -75,6 +74,15 @@ class GameState:
         :return:
         """
         return [entry[0] for entry in self.game_winner_bets + self.game_loser_bets if entry[1] == player]
+
+    def has_player_placed_trap(self, player):
+        """
+        Tests whether a player has already placed their trap
+        :param player:
+        :return:
+        """
+        player_trap = [entry for entry in self.trap_track if len(entry) > 0 and entry[1] == player]
+        return True if len(player_trap) > 0 else False
 
 
 def get_valid_moves(g, player):
@@ -269,10 +277,13 @@ def move_trap(g, trap_type, trap_place, player):
     :param player:
     :return:
     """
-    # TODO: Ask Zach: Can I remove a trap as a move?
-    # TODO: No
+    # Create a temporary dummy track
+    dummy_track = copy.deepcopy(g.trap_track)
+
     # Check if player has places the trap and remove it if so
-    if g.player_has_placed_trap[player]:
+    remove_old_trap = False
+    curr_pos = None
+    if g.has_player_placed_trap(player):
         # Remove trap
         # Find old trap position
         [curr_pos] = [[y, row[0]] for y, row in enumerate(g.trap_track) if (row[1] if 0 < len(row) else None) == player]
@@ -281,8 +292,8 @@ def move_trap(g, trap_type, trap_place, player):
         if (curr_pos[0] == trap_place) and (curr_pos[1] == trap_type):
             raise ValueError("Old and new trap position/type are identical")
 
-        g.trap_track[curr_pos[0]] = []
-        g.player_has_placed_trap[player] = False
+        remove_old_trap = True
+        dummy_track[curr_pos[0]] = []
 
     # Place trap in new position
     # Check that trap_place and trap_type are legal
@@ -296,13 +307,14 @@ def move_trap(g, trap_type, trap_place, player):
         raise ValueError("trap_place occupied by camel")
 
     # Check that spot isn't occupied by or next to an existing trap
-    if (len(g.trap_track[trap_place - 1]) != 0) or \
-       (len(g.trap_track[trap_place]) != 0) or \
-       (len(g.trap_track[trap_place + 1]) != 0):
+    if (len(dummy_track[trap_place - 1]) != 0) or \
+       (len(dummy_track[trap_place]) != 0) or \
+       (len(dummy_track[trap_place + 1]) != 0):
         raise ValueError("trap_place occupied by or next to an existing trap")
 
+    if remove_old_trap:
+        g.trap_track[curr_pos[0]] = []
     g.trap_track[trap_place] = [trap_type, player]
-    g.player_has_placed_trap[player] = True
     return True
 
 
@@ -369,10 +381,9 @@ def end_of_round(g):
     # Prepare GameState for the beginning of next round
     g.camel_yet_to_move = [True, True, True, True, True]
     g.round_bets = []  # clear round bets
-    # TODO: Check with Zach if traps are reset after each round
-    # TODO: Yes
+
+    # Uncomment this if traps should be reset to their players after each round
     # g.trap_track = [[] for i in range(finish_line)]
-    # g.player_has_placed_trap = [False, False, False, False]
     return
 
 
