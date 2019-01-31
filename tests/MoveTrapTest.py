@@ -3,10 +3,15 @@ import copy
 import camelup
 
 
-class ValidMovesTest(unittest.TestCase):
+class MoveTrapTest(unittest.TestCase):
 
     def setUp(self):
         self.g = camelup.GameState()
+
+        # Remove camels from start positions
+        self.g.camel_track[0] = []
+        self.g.camel_track[1] = []
+        self.g.camel_track[2] = []
 
     def test_place_new_trap_successful(self):
         camelup.move_trap(self.g, 1, 5, 2)

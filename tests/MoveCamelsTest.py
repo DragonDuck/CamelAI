@@ -4,7 +4,7 @@ import copy
 import camelup
 
 
-class ValidMovesTest(unittest.TestCase):
+class MoveCamelsTest(unittest.TestCase):
 
     def setUp(self):
         self.g = camelup.GameState()

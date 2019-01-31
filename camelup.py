@@ -1,17 +1,23 @@
 import random
 import copy
-import uuid
-import hashlib
-# import math
-from players import PlayerInterface, Player0
+from players import PlayerInterface
+
+# Static parameters
+# These are here to avoid "magic numbers" in the code. They can hypotheticall be changed but this will have no impact
+# on the program logic.
+__MOVE_CAMEL_ACTION_ID = 0
+__MOVE_TRAP_ACTION_ID = 1
+__ROUND_BET_ACTION_ID = 2
+__GAME_BET_ACTION_ID = 3
 
 
 class GameState:
     def __init__(self, num_camels=5, num_players=4, board_size=16,
                  first_place_round_payout=(5, 3, 2),
                  second_place_round_payout=(1, 1, 1),
-                 third_or_worse_place_round_payout=(-1, -1, -1),
-                 game_end_payout=(8, 5, 3, 1),
+                 third_or_worse_place_round_payout=-1,
+                 game_end_payout=(8, 5, 3),
+                 bad_game_end_bet=-1,
                  verbose=True):
 
         # Global game variables
@@ -21,15 +27,14 @@ class GameState:
         self.BOARD_SIZE = board_size
 
         # Payout structures
-        if not len(first_place_round_payout) == \
-                len(second_place_round_payout) == \
-                len(third_or_worse_place_round_payout):
+        if not len(first_place_round_payout) == len(second_place_round_payout):
             raise ValueError("Round payouts must all have the same length")
 
         self.FIRST_PLACE_ROUND_PAYOUT = first_place_round_payout
         self.SECOND_PLACE_ROUND_PAYOUT = second_place_round_payout
         self.THIRD_OR_WORSE_PLACE_ROUND_PAYOUT = third_or_worse_place_round_payout
         self.GAME_END_PAYOUT = game_end_payout
+        self.BAD_GAME_END_BET = bad_game_end_bet
 
         # Game parameter that can be changed
         self.verbose = verbose
@@ -84,6 +89,18 @@ class GameState:
         player_trap = [entry for entry in self.trap_track if len(entry) > 0 and entry[1] == player]
         return True if len(player_trap) > 0 else False
 
+    def get_game_bets_payout(self, index):
+        """
+        The payout for game winner/loser bets is 1 for any player who isn't in the first three to bet on the
+        corresponding camel. This function helps generate the correct value for a given player index
+        :param index: The bet index, i.e. index=4 for the 4th player to bet on the game winner/loser
+        :return:
+        """
+        if index < len(self.GAME_END_PAYOUT):
+            return self.GAME_END_PAYOUT[index]
+        else:
+            return 1
+
 
 def get_valid_moves(g, player):
     """
@@ -110,7 +127,7 @@ def get_valid_moves(g, player):
     # purpose
     if sum(g.camel_yet_to_move) == 0:
         raise RuntimeError("All camels have moved but end of round was not triggered!")
-    valid_moves.append((0,))
+    valid_moves.append((__MOVE_CAMEL_ACTION_ID,))
 
     # Traps can be placed anywhere where there is no camel or trap. They may also not be adjacent to a trap UNLESS
     # the player is moving his trap to an adjacent spot. They may also not be placed on the first spot of the track.
@@ -121,17 +138,18 @@ def get_valid_moves(g, player):
         len(g.trap_track[i]) == 0 and  # Cannot be placed on other trap
         len(trap_track_without_player_trap[i - 1]) == 0 and  # Cannot be placed next to another player's trap
         len(trap_track_without_player_trap[i + 1]) == 0]  # Cannot be placed next to another player's trap
-    valid_moves += [(1, trap_type, trap_location) for trap_type in (1, -1) for trap_location in valid_trap_locations]
+    valid_moves += [(__MOVE_TRAP_ACTION_ID, trap_type, trap_location) for trap_type
+                    in (1, -1) for trap_location in valid_trap_locations]
 
     # Round winner bets can be made as long as there are still cards available
     for camel in g.CAMELS:
         if len([bet for bet in g.round_bets if len(bet) > 0 and bet[0] == camel]) < len(g.FIRST_PLACE_ROUND_PAYOUT):
-            valid_moves.append((2, camel))
+            valid_moves.append((__ROUND_BET_ACTION_ID, camel))
 
     # Game winner/loser bets can be made as long as the player hasn't already bet on that camel
     # valid_moves += [(bet_type, camel) for bet_type in ("win", "lose")
     #                 for camel in [camel for camel in g.CAMELS if camel not in g.player_game_bets[player]]]
-    valid_moves += [(3, bet_type, camel) for bet_type in ("win", "lose")
+    valid_moves += [(__GAME_BET_ACTION_ID, bet_type, camel) for bet_type in ("win", "lose")
                     for camel in g.CAMELS if camel not in g.get_player_bets(player)]
 
     return valid_moves
@@ -227,7 +245,6 @@ def move_camel(g, player):
     [curr_pos, found_y_pos] = [
         (ix, iy) for ix, row in enumerate(g.camel_track) for iy, i in enumerate(row)
         if i == g.CAMELS[camel_index]][0]
-    stack = len(g.camel_track[curr_pos]) - found_y_pos
 
     # Roll the dice
     distance = roll_dice()
@@ -252,15 +269,23 @@ def move_camel(g, player):
     # Give the rolling player a coin
     g.player_money_values[player] += 1
 
+    # Print update
+    print_update(
+        msg="Player {} moves camel {} by {} spaces".format(str(player), g.CAMELS[camel_index], str(distance)),
+        display_updates=g.verbose)
+
     # If round is over, trigger End Of Round effects
+    end_of_round_scored = False
     if sum(g.camel_yet_to_move) == 0:
         end_of_round(g)
+        end_of_round_scored = True
 
     # If game is over, trigger End Of Game and round effects
-    if len(g.camel_track[g.BOARD_SIZE]) + \
-            len(g.camel_track[g.BOARD_SIZE + 1]) + \
-            len(g.camel_track[g.BOARD_SIZE + 2]) > 0:
-        end_of_round(g)
+    if len([field for field in g.camel_track[g.BOARD_SIZE:] if len(field) > 0]) > 0:
+        # Make sure to not score the end of the round twice if the end of the game happens to be
+        # a natural end of a round
+        if not end_of_round_scored:
+            end_of_round(g)
         end_of_game(g)
 
     return g.CAMELS[camel_index], distance
@@ -297,7 +322,7 @@ def move_trap(g, trap_type, trap_place, player):
 
     # Place trap in new position
     # Check that trap_place and trap_type are legal
-    if (trap_place < 0) or (trap_place > g.BOARD_SIZE):
+    if (trap_place < 1) or (trap_place > g.BOARD_SIZE):
         raise ValueError("Illegal value for trap_place")
     if trap_type not in (1, -1):
         raise ValueError("Illegal value for trap_type")
@@ -318,30 +343,22 @@ def move_trap(g, trap_type, trap_place, player):
     return True
 
 
-def place_game_winner_bet(g, camel, player):
-    # Check to see if they are betting on a camel they've already bet on
-    for i in range(0, len(g.player_game_bets[player])):
-        if check_bet(g.player_game_bets[player][i], str(camel)):
-            print_update(str(player) + ' tried to bet on a camel winning that they\'d already bet on!')
-            return False
-    g.game_winner_bets.append([hash_bet(str(camel)), player])
-    g.player_game_bets[player].append(hash_bet(str(camel)))
-    return True
+def place_game_bet(g, camel, bet_type, player):
+    # Check if the player has already bet on the camel
+    if camel in g.get_player_bets(player):
+        raise ValueError("Player {} has already bet on camel {}".format(player, camel))
 
-
-def place_game_loser_bet(g, camel, player):
-    # Check to see if they are betting on a camel they've already bet on
-    for i in range(0, len(g.player_game_bets[player])):
-        if check_bet(g.player_game_bets[player][i], str(camel)):
-            print_update(str(player) + ' tried to bet on a camel winning that they\'d already bet on!')
-            return False
-    g.game_loser_bets.append([hash_bet(str(camel)), player])
-    g.player_game_bets[player].append(hash_bet(str(camel)))
-    return True
+    if bet_type == "win":
+        g.game_winner_bets.append([camel, player])
+    elif bet_type == "lose":
+        g.game_loser_bets.append([camel, player])
+    else:
+        raise ValueError("Invalid bet type")
 
 
 def place_round_winner_bet(g, camel, player):
-    # TODO: There needs to be a check here that only the permitted bets are taken
+    if (__ROUND_BET_ACTION_ID, camel) not in get_valid_moves(g, player):
+        raise ValueError("Player {} attempted to make an invalid round bet on camel {}".format(player, camel))
     g.round_bets.append([camel, player])
     return True
 
@@ -349,34 +366,32 @@ def place_round_winner_bet(g, camel, player):
 def end_of_round(g):
     first_place_payout_index = 0
     second_place_payout_index = 0
-    third_or_worse_place_payout_index = 0
 
     first_place_camel = find_camel_in_nth_place(g, 1)
     second_place_camel = find_camel_in_nth_place(g, 2)
 
-    for i in range(0, len(g.round_bets) - 1):  # Payout
-        if g.round_bets[i][0] == first_place_camel:
-            payout = (first_place_round_payout[first_place_payout_index] if first_place_payout_index < len(
-                first_place_round_payout) else 0)
-            g.player_money_values[g.round_bets[i][1]] += payout  # handles out of range exceptions by returning 0
-            print_update(
-                "Paid Player " + str(g.round_bets[i][1]) + " " + str(payout) + " coins for selecting the round winner")
+    # Payout
+    for bet in g.round_bets:
+        if bet[0] == first_place_camel:
+            payout = g.FIRST_PLACE_ROUND_PAYOUT[first_place_payout_index]
+            g.player_money_values[bet[1]] += payout
             first_place_payout_index += 1
-        elif g.round_bets[i][0] == second_place_camel:
-            payout = (second_place_round_payout[second_place_payout_index] if second_place_payout_index < len(
-                second_place_round_payout) else 0)
-            g.player_money_values[g.round_bets[i][1]] += payout  # handles out of range exceptions by returning 0
+            print_update(
+                msg="Paid player #{} {} coins for selecting the round winner".format(bet[1], payout),
+                display_updates=g.verbose)
+        elif bet[0] == second_place_camel:
+            payout = g.SECOND_PLACE_ROUND_PAYOUT[second_place_payout_index]
+            g.player_money_values[bet[1]] += payout
             second_place_payout_index += 1
-            print_update("Paid Player " + str(g.round_bets[i][1]) + " " + str(
-                second_place_round_payout) + " coins for selecting the round runner up")
+            print_update(
+                msg="Paid player #{} {} coins for selecting the round runner up".format(bet[1], payout),
+                display_updates=g.verbose)
         else:
-            payout = (third_or_worse_place_round_payout[
-                          third_or_worse_place_payout_index] if third_or_worse_place_payout_index < len(
-                third_or_worse_place_round_payout) else 0)
-            g.player_money_values[g.round_bets[i][1]] += payout  # handles out of range exceptions by returning 0
-            third_or_worse_place_payout_index += 1
-            print_update("Paid Player " + str(g.round_bets[i][1]) + " " + str(
-                third_or_worse_place_round_payout) + " coins for selecting the a third place or worse camel")
+            payout = g.THIRD_OR_WORSE_PLACE_ROUND_PAYOUT
+            g.player_money_values[bet[1]] += payout
+            print_update(
+                msg="Paid player #{} {} coins for selecting the third or worse camel".format(bet[1], payout),
+                display_updates=g.verbose)
 
     # Prepare GameState for the beginning of next round
     g.camel_yet_to_move = [True, True, True, True, True]
@@ -391,41 +406,39 @@ def end_of_game(g):
     winning_camel = find_camel_in_nth_place(g, 1)  # Find camel that won
     losing_camel = find_camel_in_nth_place(g, g.NUM_CAMELS)  # Find camel that lost
 
-    # Settle game bets
-    # game_bets are of the form [camel,player]
-    # Selecting correct winner gives 8,5,3,1,1,1,1
-    # Selecting wrong gives -1
-    def get_payout(pind):
-        return game_end_payout[pind] if pind < len(game_end_payout) else 1
-
     # Settle bets on winning camel
     payout_index = 0
-    for i in range(0, len(g.game_winner_bets) - 1):
-        if check_bet(g.game_winner_bets[i][0], str(winning_camel)):  # if you win, get prize
-            payout = get_payout(payout_index)
-            g.player_money_values[g.game_winner_bets[i][1]] += payout
+    for bet in g.game_winner_bets:
+        if bet[0] == winning_camel:
+            payout = g.get_game_bets_payout(payout_index)
+            g.player_money_values[bet[1]] += payout
             print_update(
-                "Paid Player " + str(g.game_winner_bets[i][1]) + " " +
-                str(payout) + " coins for selecting the game winner")
-            payout_index += 1  # decrease value of guessing winning camel
+                msg="Paid Player #{} {} coins for betting on the game winner".format(bet[1], payout),
+                display_updates=g.verbose)
+            payout_index += 1
         else:
-            g.player_money_values[g.game_winner_bets[i][1]] -= 1
             print_update(
-                "Paid Player " + str(g.game_winner_bets[i][1]) + " -1 coins for incorrectly selecting the game winner")
+                msg="Paid Player #{} {} coins for incorrectly betting on the game winner".format(
+                    bet[1], g.BAD_GAME_END_BET),
+                display_updates=g.verbose)
+            g.player_money_values[bet[1]] += g.BAD_GAME_END_BET
 
     # Settle bets on losing camel
     payout_index = 0
-    for i in range(0, len(g.game_loser_bets) - 1):
-        if check_bet(g.game_loser_bets[i][0], str(losing_camel)):  # if you win, get prize
-            payout = get_payout(payout_index)
-            g.player_money_values[g.game_loser_bets[i][1]] += payout
+    for bet in g.game_loser_bets:
+        if bet[0] == losing_camel:
+            payout = g.get_game_bets_payout(payout_index)
+            g.player_money_values[bet[1]] += payout
             print_update(
-                "Paid Player " + str(g.game_loser_bets[i][1]) + " " + " coins for selecting the game loser")
-            payout_index += 1  # decrease value of guessing winning camel
+                msg="Paid Player #{} {} coins for betting on the game loser".format(bet[1], payout),
+                display_updates=g.verbose)
+            payout_index += 1
         else:
-            g.player_money_values[g.game_loser_bets[i][1]] -= 1
             print_update(
-                "Paid Player " + str(g.game_loser_bets[i][1]) + " -1 coins for incorrectly selecting the game loser")
+                msg="Paid Player #{} {} coins for incorrectly betting on the game loser".format(
+                    bet[1], g.BAD_GAME_END_BET),
+                display_updates=g.verbose)
+            g.player_money_values[bet[1]] += g.BAD_GAME_END_BET
 
     g.active_game = False
     g.game_winner = [i for i, j in enumerate(g.player_money_values) if j == max(g.player_money_values)]
@@ -513,27 +526,3 @@ def display_track_state(g):
     for _ in range(0, g.BOARD_SIZE):
         track_label_string += ("-" + str(_) + "-|")
     print(track_label_string)
-
-
-def hash_bet(bet):
-    # uuid is used to generate a random number
-    salt = uuid.uuid4().hex
-    return hashlib.sha256(salt.encode() + bet.encode()).hexdigest() + ':' + salt
-
-
-def check_bet(hashed_bet, user_bet):
-    bet, salt = hashed_bet.split(':')
-    return bet == hashlib.sha256(salt.encode() + user_bet.encode()).hexdigest()
-
-
-def test_game():
-    """
-    This is just a demo function
-    :return:
-    """
-    players = [Player0, Player0, Player0, Player0]
-    # player_points = [0 for i in range(len(player_pool))]
-    # print(play_game(players))
-
-    for game in range(10000):
-        winner = play_game(players)
