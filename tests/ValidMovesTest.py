@@ -32,7 +32,7 @@ class ValidMovesTest(unittest.TestCase):
         # only validates the player bets. The function for placing game bets must ensure that the lists are
         # consistent
         self.g.game_winner_bets = [['c_1', 0], ['c_4', 1], ['c_1', 3], ['c_0', 3], ['c_2', 2]]
-        self.g.game_loser_bets = [['c_4', 0], ['c_2', 1]]
+        self.g.game_loser_bets = [['c_4', 0], ['c_2', 1], ["c_1", 1], ["c_3", 1], ["c_0", 1]]
 
     def test_valid_moves(self):
         valid_moves_0 = get_valid_moves(self.g, 0)
@@ -80,13 +80,7 @@ class ValidMovesTest(unittest.TestCase):
             (2, "c_1"),
             (2, "c_2"),
             (2, "c_3"),
-            (2, "c_4"),
-            (3, "win", "c_0"),
-            (3, "win", "c_1"),
-            (3, "win", "c_3"),
-            (3, "lose", "c_0"),
-            (3, "lose", "c_1"),
-            (3, "lose", "c_3")}
+            (2, "c_4")}
 
         expected_result_2 = {
             (0,),

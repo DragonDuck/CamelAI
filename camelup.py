@@ -1,14 +1,11 @@
 import random
 import copy
-from players import PlayerInterface
+from playerinterface import PlayerInterface
+from actionids import GAME_BET_ACTION_ID, ROUND_BET_ACTION_ID, MOVE_TRAP_ACTION_ID, MOVE_CAMEL_ACTION_ID
 
-# Static parameters
-# These are here to avoid "magic numbers" in the code. They can hypotheticall be changed but this will have no impact
-# on the program logic.
-__MOVE_CAMEL_ACTION_ID = 0
-__MOVE_TRAP_ACTION_ID = 1
-__ROUND_BET_ACTION_ID = 2
-__GAME_BET_ACTION_ID = 3
+
+class IllegalMoveException(Exception):
+    pass
 
 
 class GameState:
@@ -18,7 +15,7 @@ class GameState:
                  third_or_worse_place_round_payout=-1,
                  game_end_payout=(8, 5, 3),
                  bad_game_end_bet=-1,
-                 verbose=True):
+                 verbose=False):
 
         # Global game variables
         self.NUM_CAMELS = num_camels
@@ -112,16 +109,18 @@ def get_valid_moves(g, player):
     """
     This is the "rules engine" that checks for valid moves. It returns a list of lists with elements in one of the
     following formats:
-        - [0]                               Roll the dice and randomly move a camel
-        - [1, trap_type, trap_location]     Move trap to a given location.
-                                                - trap_type: +1/-1 depending on whether
-                                                  it adds or removes one from the roll
-                                                - trap_location: ranges from 0 to board_size (exclusive)
-        - [2, camel_id]                     Make round winner bet
-                                                - camel_id: Camel ID
-        - [3, bet_type, camel_id]           Make game winner or loser bet
-                                                - bet_type: "win"/"lose" for winner/loser bet, respectively
-                                                - camel_id: Camel ID
+        - [MOVE_CAMEL_ACTION_ID]                              Roll the dice and randomly move a camel
+        - [MOVE_TRAP_ACTION_ID, trap_type, trap_location]     Move trap to a given location.
+                                                                    - trap_type: +1/-1 depending on whether
+                                                                      it adds or removes one from the roll
+                                                                    - trap_location: ranges from 0 to board_size
+                                                                      (exclusive)
+        - [ROUND_BET_ACTION_ID, camel_id]                     Make round winner bet
+                                                                    - camel_id: Camel ID
+        - [GAME_BET_ACTION_ID, bet_type, camel_id]            Make game winner or loser bet
+                                                                    - bet_type: "win"/"lose" for winner/loser bet,
+                                                                      respectively
+                                                                    - camel_id: Camel ID
     :param g: GameState object
     :param player:
     :return:
@@ -133,7 +132,7 @@ def get_valid_moves(g, player):
     # purpose
     if sum(g.camel_yet_to_move) == 0:
         raise RuntimeError("All camels have moved but end of round was not triggered!")
-    valid_moves.append((__MOVE_CAMEL_ACTION_ID,))
+    valid_moves.append((MOVE_CAMEL_ACTION_ID,))
 
     # Traps can be placed anywhere where there is no camel or trap. They may also not be adjacent to a trap UNLESS
     # the player is moving his trap to an adjacent spot. They may also not be placed on the first spot of the track.
@@ -144,18 +143,18 @@ def get_valid_moves(g, player):
         len(g.trap_track[i]) == 0 and  # Cannot be placed on other trap
         len(trap_track_without_player_trap[i - 1]) == 0 and  # Cannot be placed next to another player's trap
         len(trap_track_without_player_trap[i + 1]) == 0]  # Cannot be placed next to another player's trap
-    valid_moves += [(__MOVE_TRAP_ACTION_ID, trap_type, trap_location) for trap_type
+    valid_moves += [(MOVE_TRAP_ACTION_ID, trap_type, trap_location) for trap_type
                     in (1, -1) for trap_location in valid_trap_locations]
 
     # Round winner bets can be made as long as there are still cards available
     for camel in g.CAMELS:
         if len([bet for bet in g.round_bets if len(bet) > 0 and bet[0] == camel]) < len(g.FIRST_PLACE_ROUND_PAYOUT):
-            valid_moves.append((__ROUND_BET_ACTION_ID, camel))
+            valid_moves.append((ROUND_BET_ACTION_ID, camel))
 
     # Game winner/loser bets can be made as long as the player hasn't already bet on that camel
     # valid_moves += [(bet_type, camel) for bet_type in ("win", "lose")
     #                 for camel in [camel for camel in g.CAMELS if camel not in g.player_game_bets[player]]]
-    valid_moves += [(__GAME_BET_ACTION_ID, bet_type, camel) for bet_type in ("win", "lose")
+    valid_moves += [(GAME_BET_ACTION_ID, bet_type, camel) for bet_type in ("win", "lose")
                     for camel in g.CAMELS if camel not in g.get_player_bets(player)]
 
     return valid_moves
@@ -210,7 +209,8 @@ def play_game(players):
                 msg="Player {} places a round winner bet on camel {}".format(str(player), result[1]),
                 display_updates=g.verbose)
         elif result[0] == 3:  # Player wants to make game winner bet
-            place_game_bet(g, result[1], result[2], player)
+            # I was inconsistent with the coding and have to flip parameters.
+            place_game_bet(g, result[2], result[1], player)
             print_update(
                 msg="Player {} places a game '{}' bet on camel {}".format(str(player), result[1], result[2]),
                 display_updates=g.verbose)
@@ -222,14 +222,15 @@ def play_game(players):
     g_round = 0
     while g.active_game:
         active_player = (g_round % len(players))
-        action(
-            result=players[active_player].move(active_player, g.get_player_copy(active_player)),
-            player=active_player)
+        player_action = players[active_player].move(active_player, g.get_player_copy(active_player))
+        if player_action not in get_valid_moves(g=g, player=active_player):
+            raise IllegalMoveException("Player {} made an illegal move".format(active_player))
+        action(result=player_action, player=active_player)
         g_round += 1
         display_game_state(g)
-    print_update("$ Totals:", display_updates=g.verbose)
-    print_update("\t" + str(g.player_money_values), display_updates=g.verbose)
-    print_update("Winner: " + str(g.game_winner), display_updates=g.verbose)
+    print_update("{}".format(str(g.player_money_values)[1:-1]), display_updates=True)
+    # print_update("\t" + str(g.player_money_values), display_updates=True)
+    # print_update("Winner: " + str(g.game_winner), display_updates=True)
     return g.game_winner
 
 
@@ -359,11 +360,11 @@ def place_game_bet(g, camel, bet_type, player):
     elif bet_type == "lose":
         g.game_loser_bets.append([camel, player])
     else:
-        raise ValueError("Invalid bet type")
+        raise ValueError("{} is an invalid bet type".format(bet_type))
 
 
 def place_round_winner_bet(g, camel, player):
-    if (__ROUND_BET_ACTION_ID, camel) not in get_valid_moves(g, player):
+    if (ROUND_BET_ACTION_ID, camel) not in get_valid_moves(g, player):
         raise ValueError("Player {} attempted to make an invalid round bet on camel {}".format(player, camel))
     g.round_bets.append([camel, player])
     return True
@@ -472,18 +473,17 @@ def find_camel_in_nth_place(g, n):
 def display_game_state(g):
     if g.verbose:
         print("Track:")
-        display_track_state(g.camel_track)
+        display_track_state(g, g.camel_track)
         print("\n")
         print("Traps:")
-        display_track_state(g.trap_track)
+        display_track_state(g, g.trap_track)
         print("\n")
         print("$ Totals:")
         print("\t" + str(g.player_money_values))
         print("\n")
 
 
-def display_track_state(g):
-    track = g.camel_track
+def display_track_state(g, track):
     if not g.verbose:
         return None
 
