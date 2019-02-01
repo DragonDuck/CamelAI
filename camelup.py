@@ -101,6 +101,12 @@ class GameState:
         else:
             return 1
 
+    def get_player_copy(self, player):
+        cp = copy.deepcopy(self)
+        cp.game_winner_bets = [[None, None] if entry[1] != player else entry for entry in cp.game_winner_bets]
+        cp.game_loser_bets = [[None, None] if entry[1] != player else entry for entry in cp.game_loser_bets]
+        return cp
+
 
 def get_valid_moves(g, player):
     """
@@ -217,7 +223,7 @@ def play_game(players):
     while g.active_game:
         active_player = (g_round % len(players))
         action(
-            result=players[active_player].move(active_player, copy.deepcopy(g)),
+            result=players[active_player].move(active_player, g.get_player_copy(active_player)),
             player=active_player)
         g_round += 1
         display_game_state(g)
