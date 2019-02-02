@@ -160,6 +160,31 @@ def get_valid_moves(g, player):
     return valid_moves
 
 
+def summarize_game_state(g):
+    """
+    This function summarizes the game state, i.e. returns the location of all camels and tracks without including the
+    empty spots as well as current player money totals
+    :param g:
+    :return:
+    """
+    summary = {}
+    for camel_id in g.CAMELS:
+        camel_loc = [entry[0] for entry in enumerate(g.camel_track) if camel_id in entry[1]]
+        if len(camel_loc) > 1:
+            raise ValueError("Multiple locations for same camel!")
+        summary["camel_{}_location".format(camel_id)] = camel_loc[0]
+
+    trap_locations = [entry for entry in enumerate(g.trap_track) if len(entry[1]) > 0]
+    for entry in trap_locations:
+        summary["player_{}_trap_location".format(entry[1][1])] = entry[0]
+        summary["player_{}_trap_type".format(entry[1][1])] = entry[1][0]
+
+    for player_id in range(g.NUM_PLAYERS):
+        summary["player_{}_coins".format(player_id)] = g.player_money_values[player_id]
+
+    return summary
+
+
 def roll_dice():
     """
     Customizable dice roll logic
@@ -193,45 +218,66 @@ def play_game(players):
         raise ValueError("All players must extend PlayerInterface")
 
     def action(result, player):
-        if result[0] == 0:  # Player wants to move camel
+        action_params = {}
+        if result[0] == MOVE_CAMEL_ACTION_ID:  # Player wants to move camel
             camel, distance = move_camel(g, player)
             print_update(
                 msg="Player {} moves camel {} by {} spaces".format(str(player), camel, str(distance)),
                 display_updates=g.verbose)
-        elif result[0] == 1:  # Player wants to place trap
+            action_params["action_type"] = "move_camel"
+            action_params["camel"] = camel
+            action_params["distance"] = distance
+        elif result[0] == MOVE_TRAP_ACTION_ID:  # Player wants to place trap
             move_trap(g, result[1], result[2], player)
             print_update(
                 msg="Player {} moves a {:+d} trap to field {}".format(str(player), result[1], str(result[2])),
                 display_updates=g.verbose)
-        elif result[0] == 2:  # Player wants to make round winner bet
+            action_params["action_type"] = "move_trap"
+            action_params["trap_type"] = result[1]
+            action_params["trap_location"] = result[2]
+        elif result[0] == ROUND_BET_ACTION_ID:  # Player wants to make round winner bet
             place_round_winner_bet(g, result[1], player)
             print_update(
                 msg="Player {} places a round winner bet on camel {}".format(str(player), result[1]),
                 display_updates=g.verbose)
-        elif result[0] == 3:  # Player wants to make game winner bet
+            action_params["action_type"] = "round_winner_bet"
+            action_params["camel_id"] = result[1]
+        elif result[0] == GAME_BET_ACTION_ID:  # Player wants to make game winner bet
             # I was inconsistent with the coding and have to flip parameters.
             place_game_bet(g, result[2], result[1], player)
             print_update(
                 msg="Player {} places a game '{}' bet on camel {}".format(str(player), result[1], result[2]),
                 display_updates=g.verbose)
+            action_params["action_type"] = "game_bet"
+            action_params["bet_type"] = result[1]
+            action_params["camel_id"] = result[2]
         else:
             raise ValueError("Illegal action ({}) performed by player {}".format(result, player))
-        return
+        return action_params
 
     g = GameState()
     g_round = 0
+
+    # round_id, active_player, action_string, trap_type, trap_location, camel_id, bet_type, player_1_gold, ...,
+    # player_n_gold, camel_1_location, ..., camel_m_location, trap_1_location, ..., trap_j_location
+
+    action_log = [{"round_id": g_round, **summarize_game_state(g)}]
     while g.active_game:
         active_player = (g_round % len(players))
         player_action = players[active_player].move(active_player, g.get_player_copy(active_player))
         if player_action not in get_valid_moves(g=g, player=active_player):
             raise IllegalMoveException("Player {} made an illegal move".format(active_player))
-        action(result=player_action, player=active_player)
+        action_summary = action(result=player_action, player=active_player)
         g_round += 1
         display_game_state(g)
-    print_update("{}".format(str(g.player_money_values)[1:-1]), display_updates=True)
-    # print_update("\t" + str(g.player_money_values), display_updates=True)
-    # print_update("Winner: " + str(g.game_winner), display_updates=True)
-    return g.game_winner
+        action_log.append({
+            "round_id": g_round,
+            "active_player": active_player,
+            **action_summary,
+            **summarize_game_state(g)})
+
+    # print_update("{}".format(str(g.player_money_values)[1:-1]), display_updates=True)
+    return action_log
 
 
 def move_camel(g, player):
