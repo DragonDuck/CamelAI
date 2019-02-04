@@ -20,6 +20,7 @@ The basis of this project is a digital version of Camel Up that allows the simul
 3. Player bots: decide, on the basis of the current game state, which actions to execute.
 
 ![Game Flowchart](images/GameEngineFlowChart.png)
+
 Upon a player's turn, the player bot receives the current game state as well as a list of all valid action. On this basis, it chooses an action to perform and communicates this to the game engine. The game engine ensures that this action is valid and then updates the game state accordingly.
 
 The easiest way to simulate a game is by running the following shell command from the command line:
