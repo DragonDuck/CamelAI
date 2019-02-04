@@ -52,6 +52,8 @@ Player bots can see the current game state as well as all permitted rules. Howev
 ## Game Logs
 Game logs are output as CSV files in the `game_logs` directory. Each row represents a game round and contains information on the player action as well as the resulting game state, e.g. row N would show what action was taken and by whom in round N and a summary of the resulting game state at the end of round N.
 
+The first row of the game log describes the starting conditions before any actions are performed.
+
 Currently, the following columns are (in alphabetical order):
 
 | Column | Description |
