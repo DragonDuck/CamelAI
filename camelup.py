@@ -277,7 +277,7 @@ def play_game(players):
             **summarize_game_state(g)})
 
     # print_update("{}".format(str(g.player_money_values)[1:-1]), display_updates=True)
-    return action_log
+    return action_log, g
 
 
 def move_camel(g, player):

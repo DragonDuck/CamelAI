@@ -16,7 +16,7 @@ def run_game(num_games, players):
     for i in range(num_games):
         if i % 100 == 0:
             print("Simulating game {} out of {}".format(i, num_games))
-        game = camelup.play_game(players=players)
+        game, gamestate = camelup.play_game(players=players)
         game = pd.DataFrame(game)
         game.to_csv(path_or_buf=os.path.join("game_logs", "game_{}.csv".format(i)))
 
