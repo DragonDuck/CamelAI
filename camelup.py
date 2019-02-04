@@ -169,10 +169,15 @@ def summarize_game_state(g):
     """
     summary = {}
     for camel_id in g.CAMELS:
-        camel_loc = [entry[0] for entry in enumerate(g.camel_track) if camel_id in entry[1]]
-        if len(camel_loc) > 1:
+        board_loc = [entry for entry in enumerate(g.camel_track) if camel_id in entry[1]]
+        if len(board_loc) > 1:
             raise ValueError("Multiple locations for same camel!")
-        summary["camel_{}_location".format(camel_id)] = camel_loc[0]
+        camel_loc = board_loc[0][0]
+        stack_loc = [entry[0] for entry in enumerate(board_loc[0][1]) if camel_id in entry[1]]
+        if len(stack_loc) > 1:
+            raise ValueError("Multiple locations in stack for camel!")
+        summary["camel_{}_location".format(camel_id)] = camel_loc
+        summary["camel_{}_stack_location".format(camel_id)] = stack_loc[0]
 
     trap_locations = [entry for entry in enumerate(g.trap_track) if len(entry[1]) > 0]
     for entry in trap_locations:
@@ -241,7 +246,7 @@ def play_game(players):
                 msg="Player {} places a round winner bet on camel {}".format(str(player), result[1]),
                 display_updates=g.verbose)
             action_params["action_type"] = "round_winner_bet"
-            action_params["camel_id"] = result[1]
+            action_params["camel"] = result[1]
         elif result[0] == GAME_BET_ACTION_ID:  # Player wants to make game winner bet
             # I was inconsistent with the coding and have to flip parameters.
             place_game_bet(g, result[2], result[1], player)
@@ -250,7 +255,7 @@ def play_game(players):
                 display_updates=g.verbose)
             action_params["action_type"] = "game_bet"
             action_params["bet_type"] = result[1]
-            action_params["camel_id"] = result[2]
+            action_params["camel"] = result[2]
         else:
             raise ValueError("Illegal action ({}) performed by player {}".format(result, player))
         return action_params
