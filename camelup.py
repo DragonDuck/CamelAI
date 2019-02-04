@@ -255,7 +255,7 @@ def play_game(players):
             raise ValueError("Illegal action ({}) performed by player {}".format(result, player))
         return action_params
 
-    g = GameState()
+    g = GameState(num_players=len(players))
     g_round = 0
 
     # round_id, active_player, action_string, trap_type, trap_location, camel_id, bet_type, player_1_gold, ...,
