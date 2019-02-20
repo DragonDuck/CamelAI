@@ -89,6 +89,7 @@ class MoveCamelsTest(unittest.TestCase):
                 expected_track[12] = ["c_1", "c_2", "c_3", "c_4", "c_0"]
                 for ii in range(self.g.BOARD_SIZE):
                     self.assertEqual(self.g.camel_track[ii], expected_track[ii])
+                self.assertEqual(camelup.find_camel_in_nth_place(self.g, 1), "c_0")
 
     def test_move_stacked_camel_to_stack(self):
         self.g.camel_track[10] = ["c_0", "c_1"]
