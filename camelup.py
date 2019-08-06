@@ -10,6 +10,7 @@ class IllegalMoveException(Exception):
 
 class GameState:
     def __init__(self, num_camels=5, num_players=4, board_size=16,
+                 move_range=(1, 3),
                  first_place_round_payout=(5, 3, 2),
                  second_place_round_payout=(1, 1, 1),
                  third_or_worse_place_round_payout=-1,
@@ -22,7 +23,7 @@ class GameState:
         self.CAMELS = ["c_" + str(i) for i in range(num_camels)]
         self.NUM_PLAYERS = num_players
         self.BOARD_SIZE = board_size
-        self.MOVE_RANGE = (1, 3)
+        self.MOVE_RANGE = move_range
 
         # Payout structures
         if not len(first_place_round_payout) == len(second_place_round_payout):
