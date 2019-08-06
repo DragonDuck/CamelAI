@@ -63,8 +63,6 @@ class GameState:
         """
         This overwritten function prevents changing global parameters once they've been set. Note that this is a
         development help more than an actual security measure as there are ways to circumvent this.
-        :param key:
-        :param value:
         :return:
         """
         if key.isupper() and key in self.__dict__:
@@ -74,7 +72,7 @@ class GameState:
 
     def get_player_bets(self, player):
         """
-        This function lists all the camels a player has bet on for game winner/loser
+        This function lists all the camels a player has bet on for game winner/loser.
         :return:
         """
         return [entry[0] for entry in self.game_winner_bets + self.game_loser_bets if entry[1] == player]
@@ -82,7 +80,7 @@ class GameState:
     def has_player_placed_trap(self, player):
         """
         Tests whether a player has already placed their trap
-        :param player:
+        :param player: Player ID integer
         :return:
         """
         player_trap = [entry for entry in self.trap_track if len(entry) > 0 and entry[1] == player]
@@ -91,8 +89,8 @@ class GameState:
     def get_game_bets_payout(self, index):
         """
         The payout for game winner/loser bets is 1 for any player who isn't in the first three to bet on the
-        corresponding camel. This function helps generate the correct value for a given player index
-        :param index: The bet index, i.e. index=4 for the 4th player to bet on the game winner/loser
+        corresponding camel. This function helps generate the correct value for a given player index.
+        :param index: The bet index, i.e. index=4 for the 4th player to bet on the game winner/loser.
         :return:
         """
         if index < len(self.GAME_END_PAYOUT):
@@ -101,6 +99,11 @@ class GameState:
             return 1
 
     def get_player_copy(self, player):
+        """
+        Returns a copy of the game state but obfuscates the game winner and loser bets not made by 'player'.
+        :param player: Player ID integer.
+        :return:
+        """
         cp = copy.deepcopy(self)
         cp.game_winner_bets = [[None, None] if entry[1] != player else entry for entry in cp.game_winner_bets]
         cp.game_loser_bets = [[None, None] if entry[1] != player else entry for entry in cp.game_loser_bets]
@@ -123,8 +126,8 @@ def get_valid_moves(g, player):
                                                                     - bet_type: "win"/"lose" for winner/loser bet,
                                                                       respectively
                                                                     - camel_id: Camel ID
-    :param g: GameState object
-    :param player:
+    :param g: GameState object.
+    :param player: Player ID integer.
     :return:
     """
     valid_moves = []
@@ -165,8 +168,8 @@ def get_valid_moves(g, player):
 def summarize_game_state(g):
     """
     This function summarizes the game state, i.e. returns the location of all camels and tracks without including the
-    empty spots as well as current player money totals
-    :param g:
+    empty spots as well as current player money totals.
+    :param g: GameState object.
     :return:
     """
     summary = {}
@@ -194,8 +197,8 @@ def summarize_game_state(g):
 
 def roll_dice(move_range):
     """
-    Customizable dice roll logic
-    :param move_range: A tuple indicating the minimum and maximum move range
+    Customizable dice roll logic.
+    :param move_range: A tuple indicating the minimum and maximum move range (inclusive).
     :return:
     """
     return random.randint(*move_range)
@@ -203,9 +206,10 @@ def roll_dice(move_range):
 
 def print_update(msg, display_updates=True):
     """
-    A helper function to reduce boilerplate code
-    :param msg:
-    :param display_updates:
+    A helper function to reduce boilerplate code.
+    :param msg: String. The message to display.
+    :param display_updates: Boolean, whether or not to display the message (this makes the code more flexible and
+        agnostic towards verbosity).
     :return:
     """
     if display_updates:
@@ -217,7 +221,7 @@ def play_game(players):
     """
     Play a game until a camel wins. The game loops through players and calls their move() function until a camel passes
     the finish line.
-    :param players: A list of instances of player classes that extend PlayerInterface
+    :param players: A list of instances of player classes that extend PlayerInterface.
     :return:
     """
 
@@ -290,10 +294,10 @@ def play_game(players):
 
 def move_camel(g, player):
     """
-    Selects a random camel and moves it according to the roll_dice() function.
-    This function adheres to rules regarding camel stacking and bevavior at traps
-    :param g: The game state
-    :param player:
+    Selects a random camel and moves it according to the roll_dice() function. This function adheres to rules
+    regarding camel stacking and behavior at traps.
+    :param g: GameState object.
+    :param player: Player ID integer.
     :return:
     """
     # Select a random camel to move
@@ -357,12 +361,13 @@ def move_trap(g, trap_type, trap_place, player):
     Places, or moves, a player's trap. Automatically decides whether to place or move the trap based on whether the
     player has already placed his trap. This function checks that the spot is legal, i.e. not occupied by a trap or
     camel and not next to a trap.
-    :param g:
-    :param trap_type:
-    :param trap_place:
-    :param player:
+    :param g: GameState object.
+    :param trap_type: Integer denoting the type of trap. Permitted values are (1, -1).
+    :param trap_place: Integer denoting to location on the board to place the trap.
+    :param player: Player ID integer.
     :return:
     """
+    # TODO: Remove dummy_track and validity checks here and integrate the corresponding unit tests into ValidMovesTest.
     # Create a temporary dummy track
     dummy_track = copy.deepcopy(g.trap_track)
 
@@ -388,11 +393,13 @@ def move_trap(g, trap_type, trap_place, player):
     if trap_type not in (1, -1):
         raise ValueError("Illegal value for trap_type")
 
-    # Check that spot isn't occupied by a camel
+    # Check that spot isn't occupied by a camel or other trap
+    #       NOTE: This code isn't actually necessary, but makes it easier to test this function. It adds little
+    #       computational overhead so it's not a priority when optimizing the code. The ValueErrors raised here would
+    #       break the game flow if they are ever raised, so a lack of errors indicates that play_game() is checking
+    #       the moves correctly.
     if len(g.camel_track[trap_place]) != 0:
         raise ValueError("trap_place occupied by camel")
-
-    # Check that spot isn't occupied by or next to an existing trap
     if (len(dummy_track[trap_place - 1]) != 0) or \
        (len(dummy_track[trap_place]) != 0) or \
        (len(dummy_track[trap_place + 1]) != 0):
@@ -405,7 +412,16 @@ def move_trap(g, trap_type, trap_place, player):
 
 
 def place_game_bet(g, camel, bet_type, player):
-    # Check if the player has already bet on the camel
+    """
+    Place a bet on the game winner or loser.
+    :param g: GameState object.
+    :param camel: Camel ID string (Format c_1, c_2, etc.).
+    :param bet_type: String indicating a winning or losing bet (permitted values are "win" and "lose").
+    :param player: Player ID integer.
+    :return:
+    """
+    # TODO: Remove this check and integrate the corresponding tests into ValidMovesTest.
+    # Check if the player has already bet on the camel.
     if camel in g.get_player_bets(player):
         raise ValueError("Player {} has already bet on camel {}".format(player, camel))
 
@@ -418,6 +434,14 @@ def place_game_bet(g, camel, bet_type, player):
 
 
 def place_round_winner_bet(g, camel, player):
+    """
+    Place bet on the round winner.
+    :param g: GameState object.
+    :param camel: Camel ID string (Format c_1, c_2, etc.).
+    :param player: Player ID integer.
+    :return:
+    """
+    # TODO: Remove this check and integrate corresponding tests into ValidMovesTest.
     if (ROUND_BET_ACTION_ID, camel) not in get_valid_moves(g, player):
         raise ValueError("Player {} attempted to make an invalid round bet on camel {}".format(player, camel))
     g.round_bets.append([camel, player])
@@ -425,6 +449,11 @@ def place_round_winner_bet(g, camel, player):
 
 
 def end_of_round(g):
+    """
+    Trigger end-of-round logic.
+    :param g: GameState object.
+    :return:
+    """
     first_place_payout_index = 0
     second_place_payout_index = 0
 
@@ -464,6 +493,12 @@ def end_of_round(g):
 
 
 def end_of_game(g):
+    """
+    Trigger end-of-game logic. This does NOT run the end-of-round logic of the final round, meaning the end of the game
+    needs to be triggered by calling both end_of_round(g) AND end_of_game(g).
+    :param g: GameState object.
+    :return:
+    """
     winning_camel = find_camel_in_nth_place(g, 1)  # Find camel that won
     losing_camel = find_camel_in_nth_place(g, g.NUM_CAMELS)  # Find camel that lost
 
@@ -507,6 +542,12 @@ def end_of_game(g):
 
 
 def find_camel_in_nth_place(g, n):
+    """
+    Retrieve the ID of the camel in n-th place.
+    :param g: GameState object.
+    :param n: Integer denoting the place to retrieve, e.g 2 for second place.
+    :return:
+    """
     track = g.camel_track
     if n > g.NUM_CAMELS or n < 1:
         raise ValueError('Something tried to find a camel in a Nth place, where N is out of bounds')
@@ -525,6 +566,11 @@ def find_camel_in_nth_place(g, n):
 
 
 def display_game_state(g):
+    """
+    Display the state of the game, i.e where camels and traps are and how much money each player has.
+    :param g: GameState object.
+    :return:
+    """
     if g.verbose:
         print("Track:")
         display_track_state(g, g.camel_track)
@@ -538,6 +584,12 @@ def display_game_state(g):
 
 
 def display_track_state(g, track):
+    """
+    Display the state of either the camel track or the trap track.
+    :param g: GameState object.
+    :param track: A list of lists/tuples. Either g.camel_track or g.trap_track.
+    :return:
+    """
     if not g.verbose:
         return None
 
