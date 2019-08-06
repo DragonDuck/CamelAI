@@ -2,16 +2,16 @@ class PlayerInterface:
     """
     All bots must extend this interface and implement the method 'move()'.
 
-    This function should return one of the following lists
-        - [MOVE_CAMEL_ACTION_ID]                              Roll the dice and randomly move a camel
-        - [MOVE_TRAP_ACTION_ID, trap_type, trap_location]     Move trap to a given location.
+    This function should return one of the following tuples
+        - (MOVE_CAMEL_ACTION_ID, )                            Roll the dice and randomly move a camel
+        - (MOVE_TRAP_ACTION_ID, trap_type, trap_location)     Move trap to a given location.
                                                                     - trap_type: +1/-1 depending on whether
                                                                       it adds or removes one from the roll
                                                                     - trap_location: ranges from 0 to board_size
                                                                       (exclusive)
-        - [ROUND_BET_ACTION_ID, camel_id]                     Make round winner bet
+        - (ROUND_BET_ACTION_ID, camel_id)                     Make round winner bet
                                                                     - camel_id: Camel ID
-        - [GAME_BET_ACTION_ID, bet_type, camel_id]            Make game winner or loser bet
+        - (GAME_BET_ACTION_ID, bet_type, camel_id)            Make game winner or loser bet
                                                                     - bet_type: "win"/"lose" for winner/loser bet,
                                                                       respectively
                                                                     - camel_id: Camel ID
