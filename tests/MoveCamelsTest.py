@@ -21,7 +21,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(move_range):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -40,7 +40,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 1
 
-        def mock_roll():
+        def mock_roll(move_range):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -59,7 +59,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 3
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -79,7 +79,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -98,7 +98,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -116,7 +116,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 1
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -137,7 +137,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -164,7 +164,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -190,7 +190,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 3
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -217,7 +217,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -243,7 +243,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 2
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -270,7 +270,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 2
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -297,7 +297,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -327,7 +327,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 1
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -351,7 +351,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -378,7 +378,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -405,7 +405,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 0
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -431,7 +431,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 2
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):
@@ -460,7 +460,7 @@ class MoveCamelsTest(unittest.TestCase):
         def mock_random_camel(_):
             return 2
 
-        def mock_roll():
+        def mock_roll(_):
             return 2
 
         with unittest.mock.patch('random.choice', mock_random_camel):

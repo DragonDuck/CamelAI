@@ -22,6 +22,7 @@ class GameState:
         self.CAMELS = ["c_" + str(i) for i in range(num_camels)]
         self.NUM_PLAYERS = num_players
         self.BOARD_SIZE = board_size
+        self.MOVE_RANGE = (1, 3)
 
         # Payout structures
         if not len(first_place_round_payout) == len(second_place_round_payout):
@@ -53,7 +54,7 @@ class GameState:
         initial_camels = copy.deepcopy(self.CAMELS)
         for _ in range(0, num_camels):
             index = random.randint(0, len(initial_camels) - 1)
-            distance = roll_dice() - 1
+            distance = roll_dice(self.MOVE_RANGE) - 1
             self.camel_track[distance].append(initial_camels[index])
             initial_camels.remove(initial_camels[index])
 
@@ -190,12 +191,13 @@ def summarize_game_state(g):
     return summary
 
 
-def roll_dice():
+def roll_dice(move_range):
     """
     Customizable dice roll logic
+    :param move_range: A tuple indicating the minimum and maximum move range
     :return:
     """
-    return random.randint(1, 3)
+    return random.randint(*move_range)
 
 
 def print_update(msg, display_updates=True):
@@ -289,7 +291,7 @@ def move_camel(g, player):
     """
     Selects a random camel and moves it according to the roll_dice() function.
     This function adheres to rules regarding camel stacking and bevavior at traps
-    :param g:
+    :param g: The game state
     :param player:
     :return:
     """
@@ -305,7 +307,7 @@ def move_camel(g, player):
         if i == g.CAMELS[camel_index]][0]
 
     # Roll the dice
-    distance = roll_dice()
+    distance = roll_dice(g.MOVE_RANGE)
 
     # Check if camel hits a trap
     stack_from_bottom = False
