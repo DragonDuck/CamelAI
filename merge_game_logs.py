@@ -5,7 +5,7 @@ import re
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python MergeGameLogs.py <DIRECTORY>")
+        print("Usage: python {} <DIRECTORY>".format(sys.argv[0]))
         exit(0)
 
     logdir = sys.argv[1]
