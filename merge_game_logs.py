@@ -28,4 +28,4 @@ if __name__ == "__main__":
     first_columns = ["game_id", "round_id"]
     remaining_columns = [col for col in games.columns if col not in first_columns]
     games = games[first_columns + remaining_columns]
-    games.to_csv("GameLogs.csv", header=True, index=False)
+    games.to_csv("game_logs/GameLogs.csv", header=True, index=False)
