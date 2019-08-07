@@ -15,7 +15,7 @@ def run_game(num_games, players):
 
     for i in range(num_games):
         if i % 100 == 0:
-            print("Simulating game {} out of {}".format(i, num_games))
+            print("Simulating game {} out of {}".format(i+1, num_games))
         game, gamestate = camelup.play_game(players=players)
         game = pd.DataFrame(game)
         game.to_csv(path_or_buf=os.path.join("game_logs", "game_{}.csv".format(i)))
@@ -23,10 +23,11 @@ def run_game(num_games, players):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        raise ValueError(
+        print(
             "Usage: python {} <NUM_GAMES> <PLAYER_1> ... <PLAYER_N>\n".format(sys.argv[0]) +
             "PLAYER_J should be the name of a bot class to be imported from bots.py\n" +
             "The game can technically run with a single player")
+        exit(0)
 
     ng = None
     try:
